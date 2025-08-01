@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { v2 as cloudinary } from 'cloudinary';
 import Admin from '../models/Admin.js';
 import Contact from '../models/Contact.js';
 import Subscription from '../models/Subscription.js';
@@ -321,30 +322,8 @@ router.post('/subscriptions/bulk-email', verifyAdmin, async (req: any, res: any)
   }
 });
 
-// Configure multer for video uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Navigate from server/src/routes/ to public/video/
-    const uploadPath = path.resolve(__dirname, '../../../public/video');
-    console.log('📁 Upload destination:', uploadPath);
-    
-    // Ensure the directory exists
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-      console.log('✅ Created upload directory:', uploadPath);
-    }
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    console.log('📄 Original filename:', file.originalname);
-    console.log('📝 Request body in multer:', req.body);
-    
-    // Use a temporary filename first, we'll rename it in the upload route
-    const tempFilename = `temp_${Date.now()}_${file.originalname}`;
-    console.log('💾 Temporary filename:', tempFilename);
-    cb(null, tempFilename);
-  }
-});
+// Configure multer for file uploads (images and videos)
+const storage = multer.memoryStorage(); // Use memory storage for Cloudinary
 
 const upload = multer({
   storage: storage,
@@ -352,10 +331,10 @@ const upload = multer({
     fileSize: parseInt(process.env.MAX_FILE_SIZE || '157286400') // 150MB default
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('video/')) {
+    if (file.mimetype.startsWith('video/') || file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Only video files are allowed'));
+      cb(null, false);
     }
   }
 });
@@ -664,6 +643,67 @@ router.get('/team', async (req, res) => {
   }
 });
 
+// Upload team member image
+router.post('/team/upload-image', verifyAdmin, upload.single('image'), async (req: any, res: any) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
+    }
+
+    console.log('📸 Uploading team member image to Cloudinary...');
+    console.log('📁 File size:', req.file.size, 'bytes');
+    console.log('📁 File type:', req.file.mimetype);
+
+    // Upload to Cloudinary
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'image',
+          folder: 'cyberpit-team',
+          public_id: `team_${Date.now()}`,
+          quality: 'auto',
+          transformation: [
+            { width: 400, height: 400, crop: 'fill', gravity: 'face' }
+          ]
+        },
+        (error, result) => {
+          if (error) {
+            console.error('❌ Cloudinary upload error:', error);
+            reject(error);
+          } else {
+            console.log('✅ Cloudinary upload success:', result?.secure_url);
+            resolve(result);
+          }
+        }
+      );
+      
+      uploadStream.end(req.file.buffer);
+    });
+
+    const result = uploadResult as any;
+
+    res.json({
+      success: true,
+      message: 'Image uploaded successfully',
+      data: {
+        url: result.secure_url,
+        publicId: result.public_id
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Team image upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Image upload failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Add a new team member
 router.post('/team', verifyAdmin, async (req, res) => {
   try {
@@ -781,6 +821,67 @@ router.post('/setup-default-team', async (req, res) => {
   } catch (error) {
     console.error('Error creating default team members:', error);
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Upload project image
+router.post('/projects/upload-image', verifyAdmin, upload.single('image'), async (req: any, res: any) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
+    }
+
+    console.log('🖼️ Uploading project image to Cloudinary...');
+    console.log('📁 File size:', req.file.size, 'bytes');
+    console.log('📁 File type:', req.file.mimetype);
+
+    // Upload to Cloudinary
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'image',
+          folder: 'cyberpit-projects',
+          public_id: `project_${Date.now()}`,
+          quality: 'auto',
+          transformation: [
+            { width: 800, height: 600, crop: 'fill' }
+          ]
+        },
+        (error, result) => {
+          if (error) {
+            console.error('❌ Cloudinary upload error:', error);
+            reject(error);
+          } else {
+            console.log('✅ Cloudinary upload success:', result?.secure_url);
+            resolve(result);
+          }
+        }
+      );
+      
+      uploadStream.end(req.file.buffer);
+    });
+
+    const result = uploadResult as any;
+
+    res.json({
+      success: true,
+      message: 'Image uploaded successfully',
+      data: {
+        url: result.secure_url,
+        publicId: result.public_id
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Project image upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Image upload failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
