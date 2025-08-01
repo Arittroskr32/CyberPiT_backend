@@ -4,8 +4,64 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import { connectDB } from './config/database.js';
+
+// Get the directory name of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load environment variables with multiple fallback paths
+const envPaths = [
+  path.join(process.cwd(), '.env'),
+  path.join(__dirname, '../.env'),
+  path.join(__dirname, '../../.env')
+];
+
+let envLoaded = false;
+for (const envPath of envPaths) {
+  try {
+    if (fs.existsSync(envPath)) {
+      dotenv.config({ path: envPath });
+      console.log('✅ Environment file loaded from:', envPath);
+      envLoaded = true;
+      break;
+    }
+  } catch (error) {
+    console.log('❌ Failed to load env from:', envPath);
+  }
+}
+
+if (!envLoaded) {
+  console.log('❌ No .env file found, trying default dotenv.config()');
+  dotenv.config();
+}
+
+// Debug environment variables
+console.log('🔧 Environment Variables Debug:');
+console.log('Current working directory:', process.cwd());
+console.log('__dirname:', __dirname);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME ? '✅ Loaded' : '❌ Missing');
+
+// Configure Cloudinary after environment variables are loaded
+import { v2 as cloudinary } from 'cloudinary';
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+console.log('🔧 Cloudinary Config After Env Load:', {
+  cloud_name: cloudinary.config().cloud_name || '❌ Missing',
+  api_key: cloudinary.config().api_key ? '✅ Set' : '❌ Missing',
+  api_secret: cloudinary.config().api_secret ? '✅ Set' : '❌ Missing',
+});
+
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import contactRoutes from './routes/contact.js';
@@ -15,9 +71,6 @@ import projectRoutes from './routes/project.js';
 import reportRoutes from './routes/report.js';
 import videoRoutes from './routes/video.js';
 import feedbackRoutes from './routes/feedback.js';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

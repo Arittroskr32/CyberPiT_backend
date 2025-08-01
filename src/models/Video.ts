@@ -9,6 +9,8 @@ export interface IVideo extends Document {
   size: number;
   mimeType: string;
   isActive: boolean;
+  cloudinaryUrl?: string;      // New: Cloudinary URL
+  cloudinaryPublicId?: string; // New: Cloudinary public ID for deletion
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,6 +49,14 @@ const VideoSchema: Schema = new Schema({
   isActive: {
     type: Boolean,
     default: true,
+  },
+  cloudinaryUrl: {
+    type: String,
+    required: false,
+  },
+  cloudinaryPublicId: {
+    type: String,
+    required: false,
   },
 }, {
   timestamps: true,
