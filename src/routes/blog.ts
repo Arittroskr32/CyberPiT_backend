@@ -2,8 +2,8 @@ import express, { Request, Response } from 'express';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
 import jwt from 'jsonwebtoken';
-import Blog from '../models/Blog';
-import Admin from '../models/Admin';
+import Blog from '../models/Blog.js';
+import Admin from '../models/Admin.js';
 
 const router = express.Router();
 
