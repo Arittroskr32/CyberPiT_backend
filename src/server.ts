@@ -71,6 +71,7 @@ import projectRoutes from './routes/project.js';
 import reportRoutes from './routes/report.js';
 import videoRoutes from './routes/video.js';
 import feedbackRoutes from './routes/feedback.js';
+import blogRoutes from './routes/blog.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -109,6 +110,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/videos', videoRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/blogs', blogRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
